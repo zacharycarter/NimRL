@@ -134,8 +134,6 @@ proc print*(dungeon: Dungeon) =
           write(stdout, " ")
         of CellKind.Floor:
           write(stdout, ".")
-        of CellKind.Floor2:
-          write(stdout, "/")
         of CellKind.Wall:
           write(stdout, "#")
         else:
@@ -149,8 +147,6 @@ proc print*(dungeon: Dungeon) =
           write(stdout, " ")
         of CellKind.Floor:
           write(stdout, ".")
-        of CellKind.Floor2:
-          write(stdout, "/")
         of CellKind.Wall:
           write(stdout, "#")
         else:

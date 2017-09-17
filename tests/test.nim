@@ -15,8 +15,9 @@ proc main() =
 
   write(stdout, "\n")
 
-  let spaceshipOptions = DungeonOptions(kind: DungeonKind.Spaceship, shipBlueprint: newShipBlueprint(64, 64, "templates/spaceship_one.png"), seed: random(1337).int32)
-  let spaceship = generate(64, 64, spaceshipOptions)
+  let shipSize = (256, 256)
+  let spaceshipOptions = DungeonOptions(kind: DungeonKind.Spaceship, shipBlueprint: newShipBlueprint(shipSize[0], shipSize[1], "templates/spaceship_one.png"), seed: random(epochTime()).int32)
+  let spaceship = generate(shipSize[0], shipSize[1], spaceshipOptions)
   spaceship.print
   
 main()

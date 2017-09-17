@@ -1,4 +1,4 @@
-import astar
+import astar, nimrl/geom
 
 type
     DungeonKind* {.pure.} = enum
@@ -8,7 +8,7 @@ type
       SeanDungeon, RoomsAndCorridors, LimitConnectivity, HorizontalCorridors, HorizontalCorridorsV2, HorizontalCorridorsV3, OpenAreas, WideDiagonalBias, RoundRoomsDiagonalCorridors 
   
     CellKind* {.pure.} = enum
-      Empty, Floor, Floor2, Wall, Count
+      Empty, Floor, Wall, Count
   
     Cell = object
       kind*: CellKind
@@ -22,6 +22,7 @@ type
       of DungeonKind.Spaceship:
         seed*: int32
         partOfShip*: seq[bool]
+        rooms*: seq[Rectangle]
       width*, height*: int
       cells*: seq[Cell]
 
