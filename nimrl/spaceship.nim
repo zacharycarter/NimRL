@@ -1,4 +1,6 @@
-import stb_image/read as stbi, dungeon, random, seeded_noise, geom
+import stb_image/read as stbi, dungeon, random, seeded_noise, geom, astar, threadpool
+
+{.experimental.}
 
 proc newShipBlueprint*(width, height: int, shipTemplateFilename: string): ShipBlueprint = 
   var channels: int
@@ -130,13 +132,31 @@ proc generateRooms(spaceship: var Dungeon, shipBlueprint: ShipBlueprint) =
         break
     
     if spaceship.testRoom(column, row, column + roomX, row + roomY, CellKind.Count):
-      spaceship.rooms.add(Rectangle(x: column, y: row, width: column + roomX, height: row + roomY))
-      spaceship.rooms.add(Rectangle(x: spaceship.width - (column + roomX) - 1, y: row, width: spaceship.width - column - 1, height: row + roomY))
+      spaceship.rooms.add(Rectangle(x: column, y: row, width: (column + roomX) - column, height: (row + roomY) - row))
+      spaceship.rooms.add(Rectangle(x: spaceship.width - (column + roomX) - 1, y: row, width: (spaceship.width - column - 1) - (spaceship.width - (column + roomX) - 1), height: (row + roomY) - row))
       spaceship.writeRoom(column, row, column + roomX, row + roomY, CellKind.Floor, CellKind.Wall)
       
-    
+proc doAstar(spaceship: var Dungeon, r1, r2: int) =
+  let roomOneCenter = spaceship.rooms[r1].center()
+  let roomTwoCenter = spaceship.rooms[r2].center()
+
+  for step in path[Dungeon, tuple[x,y:int], float](spaceship, roomOneCenter, roomTwoCenter):
+    let cellKind = spaceship[step.x, step.y].kind
+    if cellKind == CellKind.Wall:
+      spaceship.writeToBothSides(step.x, step.y, CellKind.Door)
+    elif cellKind != CellKind.Door:
+      spaceship.writeToBothSides(step.x, step.y, CellKind.Floor)
+
+proc generateHallways(spaceship: var Dungeon, shipBlueprint: ShipBlueprint) =
+  
+  parallel:
+    for r1 in 0..<spaceship.rooms.len:
+      for r2 in 0..<spaceship.rooms.len:
+        spawn doAstar(spaceship, r1, r2)
+
 proc generate*(spaceship: var Dungeon, shipBlueprint: ShipBlueprint, seed: int32) =
   spaceship.seed = seed
   spaceship.partOfShip = newSeq[bool](spaceship.width * spaceship.height)
   generateUnderlyingStructure(spaceship, shipBlueprint)
   generateRooms(spaceship, shipBlueprint)
+  generateHallways(spaceship, shipBlueprint)

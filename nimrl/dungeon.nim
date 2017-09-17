@@ -8,7 +8,7 @@ type
       SeanDungeon, RoomsAndCorridors, LimitConnectivity, HorizontalCorridors, HorizontalCorridorsV2, HorizontalCorridorsV3, OpenAreas, WideDiagonalBias, RoundRoomsDiagonalCorridors 
   
     CellKind* {.pure.} = enum
-      Empty, Floor, Wall, Count
+      Empty, Floor, Wall, Door, Count
   
     Cell = object
       kind*: CellKind
@@ -67,7 +67,8 @@ template yieldIfExists( dungeon: Dungeon, point: tuple[x, y: int] ) =
   ## Checks if a point exists within a grid, then calls yield it if it does
   let exists =
     point.y >= 0 and point.y < dungeon.height and
-    point.x >= 0 and point.x < dungeon.width
+    point.x >= 0 and point.x < dungeon.width and
+    dungeon[point.x, point.y].kind != CellKind.Empty
   if exists:
     yield point
     
@@ -80,8 +81,15 @@ iterator neighbors*( dungeon: Dungeon, point: tuple[x, y: int] ): tuple[x, y: in
 
 proc cost*(dungeon: Dungeon, a, b: tuple[x, y: int]): float =
   ## Returns the cost of moving from point `a` to point `b`
-  if dungeon[a.x, a.y].kind == CellKind.Floor: result = 0.0 else: result = 1.0
+  case dungeon[a.x, a.y].kind
+  of CellKind.Floor:
+    result = 0.0
+  else:
+    result = 999.0
 
 proc heuristic*( dungeon: Dungeon, node, goal: Point ): float =
   ## Returns the priority of inspecting the given node
-  asTheCrowFlies(node, goal)
+  manhattan[tuple[x, y: int], float](node, goal)
+
+proc isBlocked( dungeon: Dungeon, goal: tuple[x, y: int] ): bool =
+  dungeon[goal.x, goal.y].kind == CellKind.Empty

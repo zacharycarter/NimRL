@@ -1,4 +1,12 @@
-import random, nimrl, times
+import random, nimrl, times, os, strutils
+
+template benchmark(benchmarkName: string, code: stmt) =
+  let t0 = epochTime()
+  code
+  let elapsed = epochTime() - t0
+  let elapsedStr = elapsed.formatFloat(format = ffDecimal, precision = 3)
+  echo "CPU Time [", benchmarkName, "] ", elapsedStr, "s"
+
 
 proc main() =
   randomize()
@@ -16,8 +24,9 @@ proc main() =
   write(stdout, "\n")
 
   let shipSize = (256, 256)
-  let spaceshipOptions = DungeonOptions(kind: DungeonKind.Spaceship, shipBlueprint: newShipBlueprint(shipSize[0], shipSize[1], "templates/spaceship_one.png"), seed: random(epochTime()).int32)
-  let spaceship = generate(shipSize[0], shipSize[1], spaceshipOptions)
+  let spaceshipOptions = DungeonOptions(kind: DungeonKind.Spaceship, shipBlueprint: newShipBlueprint(shipSize[0], shipSize[1], "templates/spaceship_two.png"), seed: random(epochTime()).int32)
+  benchmark "ship generation":
+    let spaceship = generate(shipSize[0], shipSize[1], spaceshipOptions)
   spaceship.print
   
 main()
