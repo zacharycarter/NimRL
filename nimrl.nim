@@ -1,4 +1,4 @@
-import random, times, deques, nimrl/hbw, stb_image/read as stbi, nimrl/spaceship, nimrl/dungeon
+import random, times, deques, nimrl/hbw, stb_image/read as stbi, nimrl/spaceship, nimrl/dungeon, os
 
 export
   spaceship, dungeon.DungeonOptions, dungeon.DungeonKind, dungeon.DungeonSubKind
@@ -95,15 +95,16 @@ proc generateHBWDungeon(dungeon: var Dungeon, dungeonOptions: DungeonOptions) =
     width, height, channels: int
     data: seq[uint8]
   
-  data = stbi.load("out.png", width, height, channels, stbi.Default)
+  if fileExists("out.png"):
+    data = stbi.load("out.png", width, height, channels, stbi.Default)
 
-  for y in 0..<height:
-    for x in 0..<width:
-      let index = (x + width * y) * 3
-      if data[index] == 255:
-        dungeon[x, y] = CellKind.Wall
-      else:
-        dungeon[x, y] = CellKind.Floor
+    for y in 0..<height:
+      for x in 0..<width:
+        let index = (x + width * y) * 3
+        if data[index] == 255:
+          dungeon[x, y] = CellKind.Wall
+        else:
+          dungeon[x, y] = CellKind.Floor
 
 proc generateSpaceship(dungeon: var Dungeon, dungeonOptions: DungeonOptions) =
   spaceship.generate(dungeon, dungeonOptions.shipBlueprint, dungeonOptions.seed)

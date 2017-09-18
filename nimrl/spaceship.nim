@@ -146,13 +146,10 @@ proc generateRooms(spaceship: var Dungeon, shipBlueprint: ShipBlueprint) =
       spaceship.writeRoom(column, row, column + roomX, row + roomY, CellKind.Floor, CellKind.Wall)
 
 proc doAstar(spaceship: Dungeon, r1, r2: int): seq[tuple[x,y:int]] =
-  result = @[]
-
   let roomOneCenter = spaceship.rooms[r1].center()
   let roomTwoCenter = spaceship.rooms[r2].center()
 
-  for step in path[Dungeon, tuple[x,y:int], float](spaceship, roomOneCenter, roomTwoCenter):
-    result.add(step)
+  result = path[Dungeon, tuple[x,y:int], float](spaceship, roomOneCenter, roomTwoCenter)
 
 proc placeDoors(spaceship: var Dungeon, graph: var DungeonGraph, stepSets: seq[seq[tuple[x,y:int]]]) =
   for steps in stepSets:
@@ -197,12 +194,10 @@ proc placeDoors(spaceship: var Dungeon, graph: var DungeonGraph, stepSets: seq[s
         discard graph.addEdge(graph.nodes[(roomReceivingDoorCenter.x, roomReceivingDoorCenter.y)], graph.nodes[(roomDoorToCenter.x, roomDoorToCenter.y)], 1)
 
 proc findHallways(spaceship: Dungeon, edge: DungeonGraphEdge): seq[tuple[x,y:int]] =
-  result = @[]
   let roomCenterFrom = edge.one.id
   let roomCenterTo = edge.two.id
 
-  for step in path[Dungeon, tuple[x,y:int], float](spaceship, roomCenterFrom, roomCenterTo):
-    result.add(step)
+  result = path[Dungeon, tuple[x,y:int], float](spaceship, roomCenterFrom, roomCenterTo)
 
 proc carveHallway(spaceship: var Dungeon, hallways: seq[seq[tuple[x,y:int]]]) =
   for hallway in hallways:

@@ -75,6 +75,18 @@ proc findRoomContaining*(dungeon: Dungeon, point: tuple[x,y:int]): tuple[room: R
     if room.contains(point):
       result.room = room
       result.found = true
+      
+proc isBlocked*( dungeon: Dungeon, a: tuple[x, y: int] ): bool =
+  if dungeon[a.x, a.y].kind == CellKind.Empty:
+    result = true
+  
+proc isValidLocation*( dungeon: Dungeon, a, b: tuple[x, y: int] ): bool =
+  result = b.x < 0 or b.y < 0 or b.x >= dungeon.width or b.y >= dungeon.height
+
+  if not result and a.x != b.x and a.y != b.y:
+    result = isBlocked(dungeon, b)
+
+  result = not result
 
 template yieldIfExists( dungeon: Dungeon, point: tuple[x, y: int] ) =
   ## Checks if a point exists within a grid, then calls yield it if it does
@@ -105,6 +117,10 @@ proc cost*(dungeon: Dungeon, a, b: tuple[x, y: int], r1, r2: Rectangle): float =
   case dungeon[a.x, a.y].kind
   of CellKind.Floor:
     result = 0.0
+  of CellKind.Count:
+    result = 1.0
+  of CellKind.Wall:
+    result = 2.0
   else:
     result = 999.0
 

@@ -56,8 +56,8 @@ proc generate*(filename: string, w, h: int) =
   xs = w
   ys = h
   
-  assert stbhw_build_tileset_from_image(addr ts, cast[ptr cuchar](addr data[0]), cint width * 3, cint width, cint height) != 0
+  discard stbhw_build_tileset_from_image(addr ts, cast[ptr cuchar](addr data[0]), cint width * 3, cint width, cint height)
   
   var imgData = createShared(cuchar, 3 * xs * ys)
-  assert stbhw_generate_image(addr ts, nil, imgData, cint xs * 3, cint xs, cint ys) != 0
-  assert stbi_write_png(cstring "out.png", cint xs, cint ys, 3, imgData, xs * 3) != 0
+  discard stbhw_generate_image(addr ts, nil, imgData, cint xs * 3, cint xs, cint ys)
+  discard stbi_write_png(cstring "out.png", cint xs, cint ys, 3, imgData, xs * 3)

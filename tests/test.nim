@@ -12,19 +12,18 @@ proc main() =
   randomize()
 
   let caveOptions = DungeonOptions(kind: DungeonKind.CACaves)
-  let caves = generate(64, 32, caveOptions) 
+  let caves = generate(128, 128, caveOptions) 
   caves.print
 
   write(stdout, "\n")
 
   let hbwDungeonOptions = DungeonOptions(kind: DungeonKind.HBWDungeon, subkind: DungeonSubKind.SeanDungeon)
-  let hbwDungeon = generate(64, 32, hbwDungeonOptions)
+  let hbwDungeon = generate(128, 128, hbwDungeonOptions)
   hbwDungeon.print
 
   write(stdout, "\n")
 
-  #for i in 0..<100:
-  let shipSize = (256, 256)
+  let shipSize = (128, 128)
   let spaceshipOptions = DungeonOptions(kind: DungeonKind.Spaceship, shipBlueprint: newShipBlueprint(shipSize[0], shipSize[1], "templates/spaceship_two.png"), seed: random(epochTime()).int32)
   benchmark "ship generation":
     let spaceship = generate(shipSize[0], shipSize[1], spaceshipOptions)
