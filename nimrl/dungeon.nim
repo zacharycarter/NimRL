@@ -1,4 +1,4 @@
-import astar, nimrl/geom
+import astar, nimrl/geom, dungeon_graph
 
 type
     DungeonKind* {.pure.} = enum
@@ -23,6 +23,7 @@ type
         seed*: int32
         partOfShip*: seq[bool]
         rooms*: seq[Rectangle]
+        roomGraph*: DungeonGraph
       width*, height*: int
       cells*: seq[Cell]
 
@@ -62,6 +63,18 @@ proc initialize*(dungeon: var Dungeon, columns, rows: int) =
         dungeon[column, row] = CellKind.Wall
       else:
         dungeon[column, row] = CellKind.Empty
+        
+proc findRoom*(dungeon: Dungeon, point: tuple[x,y:int]): Rectangle =
+  for room in dungeon.rooms:
+    if room.center() == point:
+      return room
+
+proc findRoomContaining*(dungeon: Dungeon, point: tuple[x,y:int]): tuple[room: Rectangle, found: bool] =
+  result.found = false
+  for room in dungeon.rooms:
+    if room.contains(point):
+      result.room = room
+      result.found = true
 
 template yieldIfExists( dungeon: Dungeon, point: tuple[x, y: int] ) =
   ## Checks if a point exists within a grid, then calls yield it if it does
@@ -87,9 +100,14 @@ proc cost*(dungeon: Dungeon, a, b: tuple[x, y: int]): float =
   else:
     result = 999.0
 
+proc cost*(dungeon: Dungeon, a, b: tuple[x, y: int], r1, r2: Rectangle): float =
+  ## Returns the cost of moving from point `a` to point `b`
+  case dungeon[a.x, a.y].kind
+  of CellKind.Floor:
+    result = 0.0
+  else:
+    result = 999.0
+
 proc heuristic*( dungeon: Dungeon, node, goal: Point ): float =
   ## Returns the priority of inspecting the given node
   manhattan[tuple[x, y: int], float](node, goal)
-
-proc isBlocked( dungeon: Dungeon, goal: tuple[x, y: int] ): bool =
-  dungeon[goal.x, goal.y].kind == CellKind.Empty

@@ -1,4 +1,4 @@
-import stb_image/read as stbi, dungeon, random, seeded_noise, geom, astar, threadpool
+import stb_image/read as stbi, dungeon, random, seeded_noise, geom, astar, threadpool, tables, dungeon_graph, sequtils, locks
 
 {.experimental.}
 
@@ -12,6 +12,9 @@ proc newShipBlueprint*(width, height: int, shipTemplateFilename: string): ShipBl
   )
 
   result.shipTemplate.image = stbi.load(shipTemplateFilename, result.shipTemplate.width, result.shipTemplate.height, channels, stbi.Default)
+
+proc write(spaceship: var Dungeon, column, row: int, cellKind: CellKind) =
+  spaceship[column, row] = cellKind
 
 proc writeToBothSides(spaceship: var Dungeon, column, row: int, cellKind: CellKind) =
   spaceship[column, row] = cellKind
@@ -132,31 +135,124 @@ proc generateRooms(spaceship: var Dungeon, shipBlueprint: ShipBlueprint) =
         break
     
     if spaceship.testRoom(column, row, column + roomX, row + roomY, CellKind.Count):
-      spaceship.rooms.add(Rectangle(x: column, y: row, width: (column + roomX) - column, height: (row + roomY) - row))
-      spaceship.rooms.add(Rectangle(x: spaceship.width - (column + roomX) - 1, y: row, width: (spaceship.width - column - 1) - (spaceship.width - (column + roomX) - 1), height: (row + roomY) - row))
-      spaceship.writeRoom(column, row, column + roomX, row + roomY, CellKind.Floor, CellKind.Wall)
+      let roomOne = Rectangle(x: column, y: row, width: (column + roomX) - column, height: (row + roomY) - row)
+      spaceship.rooms.add(roomOne)
+      discard spaceship.roomGraph.addNode(newDungeonGraphNode(roomOne.center()), true)
       
-proc doAstar(spaceship: var Dungeon, r1, r2: int) =
+      let roomTwo = Rectangle(x: spaceship.width - (column + roomX) - 1, y: row, width: (spaceship.width - column - 1) - (spaceship.width - (column + roomX) - 1), height: (row + roomY) - row)
+      spaceship.rooms.add(roomTwo)
+      discard spaceship.roomGraph.addNode(newDungeonGraphNode(roomTwo.center()), true)
+      
+      spaceship.writeRoom(column, row, column + roomX, row + roomY, CellKind.Floor, CellKind.Wall)
+
+proc doAstar(spaceship: Dungeon, r1, r2: int): seq[tuple[x,y:int]] =
+  result = @[]
+
   let roomOneCenter = spaceship.rooms[r1].center()
   let roomTwoCenter = spaceship.rooms[r2].center()
 
   for step in path[Dungeon, tuple[x,y:int], float](spaceship, roomOneCenter, roomTwoCenter):
-    let cellKind = spaceship[step.x, step.y].kind
-    if cellKind == CellKind.Wall:
-      spaceship.writeToBothSides(step.x, step.y, CellKind.Door)
-    elif cellKind != CellKind.Door:
-      spaceship.writeToBothSides(step.x, step.y, CellKind.Floor)
+    result.add(step)
 
-proc generateHallways(spaceship: var Dungeon, shipBlueprint: ShipBlueprint) =
+proc placeDoors(spaceship: var Dungeon, graph: var DungeonGraph, stepSets: seq[seq[tuple[x,y:int]]]) =
+  for steps in stepSets:
+    for s in 0..<steps.len:
+      let 
+        stepX = steps[s].x
+        stepY = steps[s].y
+        cellKind = spaceship[stepX, stepY].kind
+      
+      if cellKind == CellKind.Wall:
+        spaceship.write(stepX, stepY, CellKind.Door)
+
+        let roomReceivingDoor = spaceship.findRoomContaining((stepX, stepY))
+        assert roomReceivingDoor.found
+        let roomReceivingDoorCenter = roomReceivingDoor.room.center()
+
+        var temp = s + 1
+        while not spaceship.findRoomContaining((steps[temp].x, steps[temp].y)).found:
+          inc(temp)
+
+        let roomDoorTo = spaceship.findRoomContaining((steps[temp].x, steps[temp].y))
+        assert roomDoorTo.found
+        let roomDoorToCenter = roomDoorTo.room.center()
+
+        discard graph.addEdge(graph.nodes[(roomReceivingDoorCenter.x, roomReceivingDoorCenter.y)], graph.nodes[(roomDoorToCenter.x, roomDoorToCenter.y)], 1)
+
+      elif cellKind != CellKind.Door:
+        spaceship.write(stepX, stepY, CellKind.Floor)
+      elif cellKind == CellKind.Door:
+        let roomReceivingDoor = spaceship.findRoomContaining((stepX, stepY))
+        assert roomReceivingDoor.found
+        let roomReceivingDoorCenter = roomReceivingDoor.room.center()
+
+        var temp = s + 1
+        while not spaceship.findRoomContaining((steps[temp].x, steps[temp].y)).found:
+          inc(temp)
+
+        let roomDoorTo = spaceship.findRoomContaining((steps[temp].x, steps[temp].y))
+        assert roomDoorTo.found
+        let roomDoorToCenter = roomDoorTo.room.center()
+        
+        discard graph.addEdge(graph.nodes[(roomReceivingDoorCenter.x, roomReceivingDoorCenter.y)], graph.nodes[(roomDoorToCenter.x, roomDoorToCenter.y)], 1)
+
+proc findHallways(spaceship: Dungeon, edge: DungeonGraphEdge): seq[tuple[x,y:int]] =
+  result = @[]
+  let roomCenterFrom = edge.one.id
+  let roomCenterTo = edge.two.id
+
+  for step in path[Dungeon, tuple[x,y:int], float](spaceship, roomCenterFrom, roomCenterTo):
+    result.add(step)
+
+proc carveHallway(spaceship: var Dungeon, hallways: seq[seq[tuple[x,y:int]]]) =
+  for hallway in hallways:
+    for s in 0..<hallway.len:
+      let 
+        stepX = hallway[s].x
+        stepY = hallway[s].y
+        cellKind = spaceship[stepX, stepY].kind
+    
+      if cellKind == CellKind.Wall:
+        
+        spaceship.write(stepX, stepY, CellKind.Door)
+      elif cellKind != CellKind.Door:
+        spaceship.write(stepX, stepY, CellKind.Floor)
+
+proc generateHallways(spaceship: var Dungeon) =
+  var tempSpaceship = spaceship
+  var stepSetsInProgress: seq[FlowVar[seq[tuple[x,y:int]]]] = @[]
+  var setStepsCompleted: seq[seq[tuple[x,y:int]]] = @[]
+  #parallel:
+  for r1 in 0..<spaceship.rooms.len:
+    for r2 in 0..<spaceship.rooms.len:
+      stepSetsInProgress.add(spawn doAstar(spaceship, r1, r2))
+
+  sync()
+
+  for stepSetInProgress in stepSetsInProgress:
+    setStepsCompleted.add(^stepSetInProgress)
+    
+  tempSpaceship.placeDoors(spaceship.roomGraph, setStepsCompleted)
+  stepSetsInProgress.setLen(0)
+  setStepsCompleted.setLen(0)
+  let edges = toSeq(spaceship.roomGraph.edges.values)
+
+  #parallel:
+  for i in 0..<edges.len:
+    stepSetsInProgress.add(spawn spaceship.findHallways(edges[i]))
+
+  sync()
   
-  parallel:
-    for r1 in 0..<spaceship.rooms.len:
-      for r2 in 0..<spaceship.rooms.len:
-        spawn doAstar(spaceship, r1, r2)
+  for stepSetInProgress in stepSetsInProgress:
+    setStepsCompleted.add(^stepSetInProgress)
+
+  spaceship.carveHallway(setStepsCompleted)
+
 
 proc generate*(spaceship: var Dungeon, shipBlueprint: ShipBlueprint, seed: int32) =
   spaceship.seed = seed
   spaceship.partOfShip = newSeq[bool](spaceship.width * spaceship.height)
+  spaceship.roomGraph = newDungeonGraph()
   generateUnderlyingStructure(spaceship, shipBlueprint)
   generateRooms(spaceship, shipBlueprint)
-  generateHallways(spaceship, shipBlueprint)
+  generateHallways(spaceship)

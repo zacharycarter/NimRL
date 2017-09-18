@@ -23,6 +23,7 @@ proc main() =
 
   write(stdout, "\n")
 
+  #for i in 0..<100:
   let shipSize = (256, 256)
   let spaceshipOptions = DungeonOptions(kind: DungeonKind.Spaceship, shipBlueprint: newShipBlueprint(shipSize[0], shipSize[1], "templates/spaceship_two.png"), seed: random(epochTime()).int32)
   benchmark "ship generation":
