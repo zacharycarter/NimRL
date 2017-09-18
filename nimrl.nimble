@@ -9,4 +9,4 @@ license       = "MIT"
 
 requires "nim >= 0.17.2"
 requires "stb_image >= 1.5"
-requires "astar >= 0.5.0"
+requires "https://github.com/zacharycarter/AStarNim.git"
