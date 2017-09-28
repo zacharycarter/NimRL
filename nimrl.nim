@@ -1,7 +1,7 @@
 import random, times, deques, nimrl/hbw, stb_image/read as stbi, nimrl/spaceship, nimrl/dungeon, os
 
 export
-  spaceship, dungeon.DungeonOptions, dungeon.DungeonKind, dungeon.DungeonSubKind
+  spaceship, dungeon.DungeonOptions, dungeon.DungeonKind, dungeon.DungeonSubKind, dungeon.`[]`, dungeon.CellKind, dungeon.Dungeon
 
 proc countAdjacentWalls(caves: Dungeon, row, column: int): int =
   for i in -1..<2:
